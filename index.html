@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#101114" />
+  <title>CardGrid</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="title">CardGrid</div>
+      <div class="sub">小卡／收藏排版工具</div>
+    </div>
+    <div class="top-actions">
+      <button id="addCardBtn">＋加一格</button>
+      <button id="photoBtn">放照片</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="preview-section">
+      <div class="section-head">
+        <strong>畫布預覽</strong>
+        <span>點框框選取</span>
+      </div>
+      <div class="viewport">
+        <div id="board" class="board"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>版面</h2>
+      <label>每排格數</label>
+      <input id="layoutInput" value="4,4" inputmode="numeric" />
+      <p class="hint">例：4,4＝兩排各 4 格；4,1＝第一排 4 格、第二排 1 格。</p>
+
+      <div class="grid2">
+        <div>
+          <label>寬 mm</label>
+          <input id="widthInput" type="number" value="60" />
+        </div>
+        <div>
+          <label>高 mm</label>
+          <input id="heightInput" type="number" value="92" />
+        </div>
+      </div>
+
+      <label>預設尺寸</label>
+      <select id="presetSelect">
+        <option value="60,92">60 × 92 mm 標準小卡</option>
+        <option value="67,92">67 × 92 mm 特殊卡</option>
+        <option value="81,107">81 × 107 mm 4吋寬幅</option>
+        <option value="96,133">96 × 133 mm 小明信片</option>
+        <option value="134,190">134 × 190 mm 大明信片</option>
+        <option value="custom">自訂尺寸</option>
+      </select>
+
+      <div class="grid2">
+        <div>
+          <label>框框間距 px</label>
+          <input id="gapInput" type="number" value="10" min="0" />
+        </div>
+        <div>
+          <label>畫布內距 px</label>
+          <input id="padInput" type="number" value="14" min="0" />
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>目前選取格</h2>
+      <div id="noSelection" class="hint">先點上方其中一個框框。</div>
+      <div id="editor" hidden>
+        <div class="grid2">
+          <button id="choosePhotoBtn">上傳照片</button>
+          <button id="removePhotoBtn">移除照片</button>
+        </div>
+
+        <label>號碼</label>
+        <input id="numberInput" />
+
+        <label>名稱</label>
+        <input id="nameInput" />
+
+        <label>價格</label>
+        <input id="priceInput" />
+
+        <label>自訂文字</label>
+        <input id="customInput" />
+
+        <div class="checks">
+          <label><input id="showNumber" type="checkbox" checked /> 顯示號碼</label>
+          <label><input id="showName" type="checkbox" /> 顯示名稱</label>
+          <label><input id="showPrice" type="checkbox" checked /> 顯示價格</label>
+          <label><input id="showCustom" type="checkbox" /> 顯示自訂</label>
+        </div>
+
+        <label>照片縮放</label>
+        <input id="zoomInput" type="range" min="1" max="3" step="0.01" value="1" />
+
+        <label>左右位置</label>
+        <input id="xInput" type="range" min="0" max="100" value="50" />
+
+        <label>上下位置</label>
+        <input id="yInput" type="range" min="0" max="100" value="50" />
+
+        <label>旋轉</label>
+        <input id="rotateInput" type="range" min="-180" max="180" step="1" value="0" />
+
+        <label>亮度</label>
+        <input id="brightnessInput" type="range" min="0.4" max="1.8" step="0.01" value="1" />
+
+        <div class="checks">
+          <label><input id="soldInput" type="checkbox" /> 售完／灰白</label>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <input id="fileInput" type="file" accept="image/*" hidden />
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
