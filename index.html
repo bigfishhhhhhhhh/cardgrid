@@ -11,7 +11,7 @@
 <header class="topbar">
   <div>
     <div class="title">CardGrid</div>
-    <div class="sub">小卡／收藏排版工具 v5</div>
+    <div class="sub">小卡／大量商品圖工具 v6</div>
   </div>
   <div class="top-actions">
     <button id="addCardBtn">＋加一格</button>
@@ -130,6 +130,48 @@
   </section>
 
 
+  <section class="panel batch-panel">
+    <h2>大量處理</h2>
+    <p class="hint truth-note">商品真實性模式：只做原圖裁切與一般幾何影像處理，不使用生成式 AI、AI 補畫、AI 超解析、人臉修復或重繪卡面。</p>
+
+    <div class="grid2">
+      <button id="multiUploadBtn">一次選多張照片</button>
+      <button id="multiCardPhotoBtn">一張照片切多張卡</button>
+    </div>
+    <div class="grid2 top-gap">
+      <button id="cameraBatchBtn">開相機拍多張卡</button>
+      <button id="orientationBtn">啟用拍正提示</button>
+    </div>
+    <div id="orientationStatus" class="hint top-gap">拍正提示尚未啟用。</div>
+
+    <label class="switchline"><input id="autoNumberBatch" type="checkbox" checked><span>批量加入後自動重新編號 1、2、3……</span></label>
+
+    <div class="subpanel">
+      <div class="subpanel-title">快速價格列表</div>
+      <p class="hint">每行輸入「編號 價格」，例如：1 100</p>
+      <textarea id="quickPriceInput" class="textarea" rows="7" placeholder="1 100
+2 150
+3 80
+4 200"></textarea>
+      <button id="applyQuickPriceBtn" class="full">套用價格</button>
+    </div>
+
+    <div class="subpanel">
+      <div class="subpanel-title">批量共用設定</div>
+      <div class="grid2">
+        <div><label>共用字級</label><input id="batchFontSizeInput" type="number" value="16" min="8" max="80"></div>
+        <div><label>價格位置</label><select id="batchPricePosSelect"></select></div>
+      </div>
+      <button id="applyBatchStyleBtn" class="full">套用到所有有照片的卡</button>
+    </div>
+
+    <div class="subpanel">
+      <div class="subpanel-title">卡片排序</div>
+      <p class="hint">按住 ☰ 拖曳即可重新排序；多卡裁切會先依左到右、上到下排序。</p>
+      <div id="batchOrderList" class="batch-order-list"></div>
+    </div>
+  </section>
+
   <section class="panel">
     <h2>自由文字（不屬於任何框框）</h2>
     <button id="addFreeTextBtn" class="full">＋新增自由文字</button>
@@ -156,6 +198,8 @@
         <button id="choosePhotoBtn">上傳／拍照</button>
         <button id="removePhotoBtn">移除照片</button>
       </div>
+
+      <button id="restoreOriginalCropBtn" class="full secondary">恢復原始裁切</button>
 
       <div class="subpanel">
         <div class="subpanel-title">此格尺寸</div>
@@ -243,7 +287,35 @@
 </main>
 
 <input id="fileInput" type="file" accept="image/*" hidden />
+<input id="multiFileInput" type="file" accept="image/*" multiple hidden />
+<input id="multiCardFileInput" type="file" accept="image/*" hidden />
 <input id="backgroundFileInput" type="file" accept="image/*" hidden />
+
+<div id="cropModal" class="modal" hidden>
+  <div class="modal-card">
+    <div class="modal-head"><strong>多卡辨識與裁切</strong><button id="closeCropModalBtn">關閉</button></div>
+    <p class="hint">藍框＝裁切範圍。點框選取後可拖四個角；可新增／刪除。預設只做原圖裁切，不做透視拉伸。</p>
+    <div class="crop-stage-wrap"><canvas id="cropCanvas"></canvas></div>
+    <div class="toolbar-wrap">
+      <button id="detectCardsBtn">自動辨識</button>
+      <button id="addCropBtn">＋新增裁切框</button>
+      <button id="deleteCropBtn">刪除選取框</button>
+    </div>
+    <div id="cropRegionList" class="crop-region-list"></div>
+    <button id="importCropsBtn" class="full primary">依位置排序並加入排版</button>
+  </div>
+</div>
+
+<div id="cameraModal" class="modal" hidden>
+  <div class="modal-card">
+    <div class="modal-head"><strong>多卡拍攝</strong><button id="closeCameraBtn">關閉</button></div>
+    <div id="cameraLevelHint" class="level-hint">請先啟用拍正提示，或直接拍攝。</div>
+    <video id="cameraVideo" autoplay playsinline muted></video>
+    <button id="captureCameraBtn" class="full primary">拍攝這張</button>
+  </div>
+</div>
+
+<script async src="https://docs.opencv.org/4.x/opencv.js"></script>
 <script type="module" src="/app.js"></script>
 </body>
 </html>

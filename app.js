@@ -1,9 +1,12 @@
 
 import html2canvas from 'html2canvas';
+import Sortable from 'sortablejs';
 
 const $ = id => document.getElementById(id);
 let selected = null, cards = [], backgroundImage = null, freeTexts = [], selectedFreeText = null;
 let bgState={zoom:1,x:50,y:50,rotate:0};
+let cropSourceImage=null,cropRegions=[],selectedCropRegion=null,cropDisplayScale=1,cameraStream=null,orientationEnabled=false;
+let batchSortable=null;
 
 const POSITIONS=[
  ['top-left','框內左上'],['top-center','框內上中'],['top-right','框內右上'],
@@ -28,7 +31,7 @@ function populate(){
 }
 const newStyle=()=>({font:FONTS[0][0],size:16,color:'#ffffff',opacity:1});
 function blankCard(){return{
- img:null,number:String(cards.length+1),name:'',price:'',custom:'',
+ img:null,originalImg:null,number:String(cards.length+1),name:'',price:'',custom:'',
  showNumber:true,showName:false,showPrice:true,showCustom:false,
  numberPos:'bottom-left',namePos:'out-top-left',pricePos:'out-bottom-center',customPos:'center',numberStyle:'plain',
  numberStyleData:newStyle(),nameStyleData:newStyle(),priceStyleData:newStyle(),customStyleData:newStyle(),
@@ -45,14 +48,16 @@ function csize(c){const g=gsize();return c.overrideSize?{w:Math.max(20,+c.width|
 function rgba(hex,a){const n=parseInt(hex.replace('#',''),16);return`rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`}
 function fmtNum(v,s){if(s==='hash')return'#'+v;if(s==='bracket')return'['+v+']';if(s==='zero')return String(v).padStart(2,'0');if(s==='circle'){const m=['⓪','①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩','⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳'];return m[+v]||v}return v}
 function outside(pos){return pos.startsWith('out-')||pos.startsWith('cross-')}
-function needTop(c){
- const list=[[c.showNumber,c.numberPos],[c.showName,c.namePos],[c.showPrice,c.pricePos],[c.showCustom,c.customPos]];
- return list.some(([on,p])=>on&&(p.startsWith('out-top')||p.startsWith('cross-')));
+function visibleTextItems(c){
+ return [
+  [c.showNumber,String(c.number||'').trim(),c.numberPos],
+  [c.showName,String(c.name||'').trim(),c.namePos],
+  [c.showPrice,String(c.price||'').trim(),c.pricePos],
+  [c.showCustom,String(c.custom||'').trim(),c.customPos]
+ ];
 }
-function needBottom(c){
- const list=[[c.showNumber,c.numberPos],[c.showName,c.namePos],[c.showPrice,c.pricePos],[c.showCustom,c.customPos]];
- return list.some(([on,p])=>on&&p.startsWith('out-bottom'));
-}
+function needTop(c){return visibleTextItems(c).some(([on,text,p])=>on&&text&&(p.startsWith('out-top')||p.startsWith('cross-')))}
+function needBottom(c){return visibleTextItems(c).some(([on,text,p])=>on&&text&&p.startsWith('out-bottom'))}
 function addMeta(shell,card,text,pos,sty,cardTop,cardH,mx=50,my=50){
  if(!text)return;
  const el=document.createElement('div');el.className=`meta-item pos-${pos}`;el.textContent=text;
@@ -129,6 +134,7 @@ function render(){
  const layer=document.createElement('div');layer.className='free-text-layer';
  freeTexts.forEach(t=>{const el=document.createElement('div');el.className='free-text-item';el.textContent=t.text;el.style.left=t.x+'%';el.style.top=t.y+'%';el.style.fontFamily=t.font;el.style.fontSize=t.size+'px';el.style.color=t.color;el.style.opacity=t.opacity;el.style.transform=`translate(-50%,-50%) rotate(${t.rotate}deg)`;layer.appendChild(el)});
  board.appendChild(layer);
+ renderBatchOrder();
 }
 function renderGroupPrices(row,rowCards,runs,topReserve,maxH,bottomReserve){
  if(!runs.length)return;
@@ -163,7 +169,7 @@ populate();
 
 $('addCardBtn').onclick=()=>{const a=parseLayout();a[a.length-1]++;$('layoutInput').value=a.join(',');render()};
 $('photoBtn').onclick=choosePhoto;$('choosePhotoBtn').onclick=choosePhoto;$('addFreeTextBtn').onclick=addFreeText;$('addFreeTextTopBtn').onclick=addFreeText;
-$('fileInput').onchange=e=>{const f=e.target.files?.[0];if(!f||selected===null)return;const r=new FileReader();r.onload=()=>{cards[selected].img=r.result;render();loadEditor()};r.readAsDataURL(f);e.target.value=''};
+$('fileInput').onchange=e=>{const f=e.target.files?.[0];if(!f||selected===null)return;const r=new FileReader();r.onload=()=>{cards[selected].img=r.result;cards[selected].originalImg=r.result;render();loadEditor()};r.readAsDataURL(f);e.target.value=''};
 $('removePhotoBtn').onclick=()=>{if(selected===null)return;cards[selected].img=null;render()};
 
 $('backgroundImageBtn').onclick=()=>$('backgroundFileInput').click();
@@ -207,6 +213,97 @@ $('freeTextY').oninput=()=>{if(selectedFreeText===null)return;freeTexts[selected
 $('freeTextRotate').oninput=()=>{if(selectedFreeText===null)return;freeTexts[selectedFreeText].rotate=+$('freeTextRotate').value;render()};
 $('duplicateFreeTextBtn').onclick=()=>{if(selectedFreeText===null)return;const t={...freeTexts[selectedFreeText],x:Math.min(100,freeTexts[selectedFreeText].x+5),y:Math.min(100,freeTexts[selectedFreeText].y+5)};freeTexts.push(t);selectedFreeText=freeTexts.length-1;render();loadFreeTextEditor()};
 $('deleteFreeTextBtn').onclick=()=>{if(selectedFreeText===null)return;freeTexts.splice(selectedFreeText,1);selectedFreeText=freeTexts.length?Math.min(selectedFreeText,freeTexts.length-1):null;render();loadFreeTextEditor()};
+
+
+function setLayoutTotal(total){
+ const current=parseLayout();let cols=Math.max(1,current[0]||4),rows=[];let remaining=total;
+ while(remaining>0){rows.push(Math.min(cols,remaining));remaining-=cols}
+ $('layoutInput').value=(rows.length?rows:[1]).join(',');syncCards();
+}
+function renumberAll(){cards.forEach((c,i)=>c.number=String(i+1))}
+function addImageBatch(images){
+ if(!images.length)return;
+ syncCards();let empty=cards.filterIndex?null:null;
+ let imageIndex=0;
+ for(let i=0;i<cards.length&&imageIndex<images.length;i++){
+   if(!cards[i].img){cards[i].img=images[imageIndex];cards[i].originalImg=images[imageIndex];imageIndex++}
+ }
+ if(imageIndex<images.length){
+   const oldCount=cards.length,needed=images.length-imageIndex;setLayoutTotal(oldCount+needed);
+   for(let i=oldCount;i<cards.length&&imageIndex<images.length;i++){cards[i].img=images[imageIndex];cards[i].originalImg=images[imageIndex];imageIndex++}
+ }
+ if($('autoNumberBatch').checked)renumberAll();render();loadEditor();
+}
+function readFilesAsDataURLs(files){return Promise.all([...files].map(f=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(f)})))}
+$('multiUploadBtn').onclick=()=>$('multiFileInput').click();
+$('multiFileInput').onchange=async e=>{const urls=await readFilesAsDataURLs(e.target.files||[]);addImageBatch(urls);e.target.value=''};
+
+function imageCardIndices(){return cards.map((c,i)=>c.img?i:-1).filter(i=>i>=0)}
+function renderBatchOrder(){
+ const list=$('batchOrderList');if(!list)return;const inds=imageCardIndices();list.innerHTML='';
+ inds.forEach(i=>{const c=cards[i],el=document.createElement('div');el.className='batch-order-item';el.dataset.cardIndex=i;el.innerHTML=`<span class="drag-handle">☰</span><img class="batch-thumb" src="${c.img}"><div class="batch-order-meta"><b>#${c.number||i+1}</b><span>${c.price?'$ '+c.price:'尚未輸入價格'}</span></div><button type="button" data-edit="${i}">編輯</button>`;list.appendChild(el)});
+ list.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{selected=+b.dataset.edit;render();loadEditor();document.getElementById('editor').scrollIntoView({behavior:'smooth'})});
+ if(batchSortable){batchSortable.destroy();batchSortable=null}
+ batchSortable=new Sortable(list,{animation:150,handle:'.drag-handle',touchStartThreshold:4,onEnd(evt){
+   const before=imageCardIndices();const movedIndex=before[evt.oldIndex],targetIndex=before[evt.newIndex];if(movedIndex===undefined||targetIndex===undefined)return;
+   const moved=cards.splice(movedIndex,1)[0];let insertAt=targetIndex;if(movedIndex<targetIndex)insertAt--;cards.splice(insertAt,0,moved);if($('autoNumberBatch').checked)renumberAll();render();
+ }});
+}
+$('applyQuickPriceBtn').onclick=()=>{
+ const lines=$('quickPriceInput').value.split(/\n+/);let count=0;
+ lines.forEach(line=>{const m=line.trim().match(/^(\S+)\s*[,，:\t ]+\s*(.+)$/);if(!m)return;const num=m[1],price=m[2].trim();const c=cards.find(x=>String(x.number).trim()===num);if(c){c.price=price;c.showPrice=true;count++}});render();alert(`已套用 ${count} 筆價格`)
+};
+// batch price position options follows regular text positions
+POSITIONS.forEach(([v,t])=>{const o=document.createElement('option');o.value=v;o.textContent=t;$('batchPricePosSelect').appendChild(o)});$('batchPricePosSelect').value='out-bottom-center';
+$('applyBatchStyleBtn').onclick=()=>{const size=+$('batchFontSizeInput').value||16,pos=$('batchPricePosSelect').value;cards.filter(c=>c.img).forEach(c=>{c.numberStyleData.size=size;c.nameStyleData.size=size;c.priceStyleData.size=size;c.customStyleData.size=size;c.pricePos=pos});render()};
+
+// -------- Multi-card crop editor: classical geometry only --------
+function loadImage(dataUrl){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src=dataUrl})}
+function orderQuad(pts){
+ const c={x:pts.reduce((s,p)=>s+p.x,0)/4,y:pts.reduce((s,p)=>s+p.y,0)/4};
+ return pts.slice().sort((a,b)=>Math.atan2(a.y-c.y,a.x-c.x)-Math.atan2(b.y-c.y,b.x-c.x)).reduce((arr,p)=>arr.concat(p),[]);
+}
+async function openCropEditor(dataUrl){cropSourceImage=await loadImage(dataUrl);cropRegions=[];selectedCropRegion=null;$('cropModal').hidden=false;resizeCropCanvas();drawCropEditor();setTimeout(autoDetectCards,200)}
+function resizeCropCanvas(){if(!cropSourceImage)return;const canvas=$('cropCanvas'),maxW=Math.min(820,window.innerWidth-40);cropDisplayScale=Math.min(1,maxW/cropSourceImage.naturalWidth);canvas.width=Math.round(cropSourceImage.naturalWidth*cropDisplayScale);canvas.height=Math.round(cropSourceImage.naturalHeight*cropDisplayScale)}
+function drawCropEditor(){
+ const can=$('cropCanvas');if(!cropSourceImage)return;const ctx=can.getContext('2d');ctx.clearRect(0,0,can.width,can.height);ctx.drawImage(cropSourceImage,0,0,can.width,can.height);
+ cropRegions.forEach((r,ri)=>{const pts=r.pts.map(p=>({x:p.x*cropDisplayScale,y:p.y*cropDisplayScale}));ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);pts.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));ctx.closePath();ctx.lineWidth=ri===selectedCropRegion?4:2;ctx.strokeStyle=ri===selectedCropRegion?'#7f8cff':'#2fd1ff';ctx.stroke();pts.forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,ri===selectedCropRegion?8:6,0,Math.PI*2);ctx.fillStyle=ri===selectedCropRegion?'#7f8cff':'#2fd1ff';ctx.fill()});ctx.fillStyle='rgba(0,0,0,.65)';ctx.fillRect(pts[0].x,pts[0].y,26,20);ctx.fillStyle='#fff';ctx.font='13px sans-serif';ctx.fillText(String(ri+1),pts[0].x+7,pts[0].y+15)});renderCropRegionList()
+}
+function renderCropRegionList(){const box=$('cropRegionList');box.innerHTML='';cropRegions.forEach((r,i)=>{const d=document.createElement('div');d.className='crop-region-item'+(i===selectedCropRegion?' selected':'');d.innerHTML=`<b>${i+1}</b><label><input type="checkbox" data-persp="${i}" ${r.perspective?'checked':''}> 透視校正（選用）</label><button data-selectcrop="${i}">選取</button>`;box.appendChild(d)});box.querySelectorAll('[data-persp]').forEach(x=>x.onchange=()=>cropRegions[+x.dataset.persp].perspective=x.checked);box.querySelectorAll('[data-selectcrop]').forEach(x=>x.onclick=()=>{selectedCropRegion=+x.dataset.selectcrop;drawCropEditor()})}
+function contourAreaPts(pts){let a=0;for(let i=0;i<pts.length;i++){let j=(i+1)%pts.length;a+=pts[i].x*pts[j].y-pts[j].x*pts[i].y}return Math.abs(a/2)}
+async function waitForCv(timeout=7000){const start=Date.now();while(Date.now()-start<timeout){if(window.cv&&cv.Mat)return true;await new Promise(r=>setTimeout(r,150))}return false}
+async function autoDetectCards(){
+ if(!cropSourceImage)return;const ok=await waitForCv();if(!ok){alert('OpenCV 還在載入，請稍後再按「自動辨識」。');return}
+ const srcCan=document.createElement('canvas');srcCan.width=cropSourceImage.naturalWidth;srcCan.height=cropSourceImage.naturalHeight;srcCan.getContext('2d').drawImage(cropSourceImage,0,0);
+ let src=cv.imread(srcCan),gray=new cv.Mat(),blur=new cv.Mat(),edges=new cv.Mat(),contours=new cv.MatVector(),hierarchy=new cv.Mat();
+ try{cv.cvtColor(src,gray,cv.COLOR_RGBA2GRAY);cv.GaussianBlur(gray,blur,new cv.Size(5,5),0);cv.Canny(blur,edges,55,150);cv.findContours(edges,contours,hierarchy,cv.RETR_LIST,cv.CHAIN_APPROX_SIMPLE);const found=[],imgArea=src.cols*src.rows;
+   for(let i=0;i<contours.size();i++){const cnt=contours.get(i),peri=cv.arcLength(cnt,true),approx=new cv.Mat();cv.approxPolyDP(cnt,approx,0.02*peri,true);if(approx.rows===4){const pts=[];for(let k=0;k<4;k++)pts.push({x:approx.intPtr(k,0)[0],y:approx.intPtr(k,0)[1]});const area=contourAreaPts(pts);if(area>imgArea*.012&&area<imgArea*.45){const ordered=orderQuad(pts);found.push({pts:ordered,perspective:false,area})}}approx.delete();cnt.delete()}
+   found.sort((a,b)=>{const ay=Math.min(...a.pts.map(p=>p.y)),by=Math.min(...b.pts.map(p=>p.y));if(Math.abs(ay-by)>src.rows*.08)return ay-by;return Math.min(...a.pts.map(p=>p.x))-Math.min(...b.pts.map(p=>p.x))});
+   // remove near-duplicates by center
+   const unique=[];for(const r of found){const cx=r.pts.reduce((s,p)=>s+p.x,0)/4,cy=r.pts.reduce((s,p)=>s+p.y,0)/4;if(!unique.some(u=>{const ux=u.pts.reduce((s,p)=>s+p.x,0)/4,uy=u.pts.reduce((s,p)=>s+p.y,0)/4;return Math.hypot(cx-ux,cy-uy)<Math.min(src.cols,src.rows)*.04}))unique.push(r)}
+   cropRegions=unique.slice(0,30);selectedCropRegion=cropRegions.length?0:null;if(!cropRegions.length)addDefaultCrop();drawCropEditor();
+ }finally{src.delete();gray.delete();blur.delete();edges.delete();contours.delete();hierarchy.delete()}
+}
+function addDefaultCrop(){if(!cropSourceImage)return;const w=cropSourceImage.naturalWidth,h=cropSourceImage.naturalHeight,cx=w/2,cy=h/2,rw=w*.22,rh=h*.35;cropRegions.push({pts:[{x:cx-rw,y:cy-rh},{x:cx+rw,y:cy-rh},{x:cx+rw,y:cy+rh},{x:cx-rw,y:cy+rh}],perspective:false});selectedCropRegion=cropRegions.length-1}
+$('detectCardsBtn').onclick=autoDetectCards;$('addCropBtn').onclick=()=>{addDefaultCrop();drawCropEditor()};$('deleteCropBtn').onclick=()=>{if(selectedCropRegion===null)return;cropRegions.splice(selectedCropRegion,1);selectedCropRegion=cropRegions.length?Math.min(selectedCropRegion,cropRegions.length-1):null;drawCropEditor()};
+$('multiCardPhotoBtn').onclick=()=>$('multiCardFileInput').click();$('multiCardFileInput').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;const [url]=await readFilesAsDataURLs([f]);openCropEditor(url);e.target.value=''};$('closeCropModalBtn').onclick=()=>{$('cropModal').hidden=true};
+let dragCorner=null;
+$('cropCanvas').addEventListener('pointerdown',e=>{if(!cropRegions.length)return;const r=$('cropCanvas').getBoundingClientRect(),x=(e.clientX-r.left)*($('cropCanvas').width/r.width),y=(e.clientY-r.top)*($('cropCanvas').height/r.height);let best=null,bd=28;cropRegions.forEach((reg,ri)=>reg.pts.forEach((p,pi)=>{const d=Math.hypot(p.x*cropDisplayScale-x,p.y*cropDisplayScale-y);if(d<bd){bd=d;best={ri,pi}}}));if(best){selectedCropRegion=best.ri;dragCorner=best;$('cropCanvas').setPointerCapture(e.pointerId);drawCropEditor()}});
+$('cropCanvas').addEventListener('pointermove',e=>{if(!dragCorner)return;const r=$('cropCanvas').getBoundingClientRect(),x=(e.clientX-r.left)*($('cropCanvas').width/r.width)/cropDisplayScale,y=(e.clientY-r.top)*($('cropCanvas').height/r.height)/cropDisplayScale;cropRegions[dragCorner.ri].pts[dragCorner.pi]={x:Math.max(0,Math.min(cropSourceImage.naturalWidth,x)),y:Math.max(0,Math.min(cropSourceImage.naturalHeight,y))};drawCropEditor()});
+$('cropCanvas').addEventListener('pointerup',()=>dragCorner=null);$('cropCanvas').addEventListener('pointercancel',()=>dragCorner=null);
+function rawCrop(region){const xs=region.pts.map(p=>p.x),ys=region.pts.map(p=>p.y),x=Math.max(0,Math.floor(Math.min(...xs))),y=Math.max(0,Math.floor(Math.min(...ys))),x2=Math.min(cropSourceImage.naturalWidth,Math.ceil(Math.max(...xs))),y2=Math.min(cropSourceImage.naturalHeight,Math.ceil(Math.max(...ys))),w=x2-x,h=y2-y;const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(cropSourceImage,x,y,w,h,0,0,w,h);return c.toDataURL('image/jpeg',.96)}
+async function perspectiveCrop(region){const ok=await waitForCv();if(!ok)return rawCrop(region);const ordered=orderQuad(region.pts),dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y),w=Math.max(10,Math.round(Math.max(dist(ordered[0],ordered[1]),dist(ordered[3],ordered[2])))),h=Math.max(10,Math.round(Math.max(dist(ordered[0],ordered[3]),dist(ordered[1],ordered[2]))));const srcCan=document.createElement('canvas');srcCan.width=cropSourceImage.naturalWidth;srcCan.height=cropSourceImage.naturalHeight;srcCan.getContext('2d').drawImage(cropSourceImage,0,0);const src=cv.imread(srcCan),dst=new cv.Mat(),srcTri=cv.matFromArray(4,1,cv.CV_32FC2,ordered.flatMap(p=>[p.x,p.y])),dstTri=cv.matFromArray(4,1,cv.CV_32FC2,[0,0,w-1,0,w-1,h-1,0,h-1]),M=cv.getPerspectiveTransform(srcTri,dstTri);cv.warpPerspective(src,dst,M,new cv.Size(w,h),cv.INTER_LINEAR,cv.BORDER_REPLICATE);const out=document.createElement('canvas');out.width=w;out.height=h;cv.imshow(out,dst);const url=out.toDataURL('image/jpeg',.96);src.delete();dst.delete();srcTri.delete();dstTri.delete();M.delete();return url}
+$('importCropsBtn').onclick=async()=>{if(!cropRegions.length)return;const sorted=cropRegions.slice().sort((a,b)=>{const ay=Math.min(...a.pts.map(p=>p.y)),by=Math.min(...b.pts.map(p=>p.y));if(Math.abs(ay-by)>cropSourceImage.naturalHeight*.08)return ay-by;return Math.min(...a.pts.map(p=>p.x))-Math.min(...b.pts.map(p=>p.x))});const imgs=[];for(const r of sorted){const original=rawCrop(r),shown=r.perspective?await perspectiveCrop(r):original;imgs.push({shown,original})}addImageBatchObjects(imgs);$('cropModal').hidden=true};
+function addImageBatchObjects(items){const urls=items.map(x=>x.shown);syncCards();let k=0;for(let i=0;i<cards.length&&k<items.length;i++)if(!cards[i].img){cards[i].img=items[k].shown;cards[i].originalImg=items[k].original;k++}if(k<items.length){const old=cards.length;setLayoutTotal(old+items.length-k);for(let i=old;i<cards.length&&k<items.length;i++){cards[i].img=items[k].shown;cards[i].originalImg=items[k].original;k++}}if($('autoNumberBatch').checked)renumberAll();render()}
+$('restoreOriginalCropBtn').onclick=()=>{if(selected===null||!cards[selected]?.originalImg)return;cards[selected].img=cards[selected].originalImg;render();loadEditor()};
+
+// camera + orientation guidance
+async function requestOrientation(){try{if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function'){const r=await DeviceOrientationEvent.requestPermission();if(r!=='granted')throw new Error('denied')}orientationEnabled=true;window.addEventListener('deviceorientation',handleOrientation);$('orientationStatus').textContent='拍正提示已啟用。拍攝時會依手機傾斜方向提示。'}catch(e){$('orientationStatus').textContent='無法取得方向感測權限；仍可正常拍照。'}}
+function handleOrientation(e){if(!orientationEnabled)return;const beta=e.beta??0,gamma=e.gamma??0;let msg='角度接近平行，可以拍攝';if(Math.abs(gamma)>5)msg=gamma>0?'請將手機稍微往左':'請將手機稍微往右';else if(Math.abs(beta)>5)msg=beta>0?'請將手機上緣稍微壓低':'請將手機上緣稍微抬高';$('cameraLevelHint').textContent=msg}
+$('orientationBtn').onclick=requestOrientation;
+$('cameraBatchBtn').onclick=async()=>{try{cameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});$('cameraVideo').srcObject=cameraStream;$('cameraModal').hidden=false}catch(e){alert('無法開啟相機，請確認 Safari 已允許相機權限。')}};
+function stopCamera(){if(cameraStream){cameraStream.getTracks().forEach(t=>t.stop());cameraStream=null}$('cameraModal').hidden=true}
+$('closeCameraBtn').onclick=stopCamera;$('captureCameraBtn').onclick=async()=>{const v=$('cameraVideo');if(!v.videoWidth)return;const c=document.createElement('canvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);const url=c.toDataURL('image/jpeg',.96);stopCamera();openCropEditor(url)};
 
 $('exportBtn').onclick=async()=>{
  const board=$('board'), oldSelected=selected;
