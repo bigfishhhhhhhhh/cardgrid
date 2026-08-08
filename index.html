@@ -11,11 +11,13 @@
 <header class="topbar">
   <div>
     <div class="title">CardGrid</div>
-    <div class="sub">小卡／收藏排版工具</div>
+    <div class="sub">小卡／收藏排版工具 v5</div>
   </div>
   <div class="top-actions">
     <button id="addCardBtn">＋加一格</button>
     <button id="photoBtn">放照片</button>
+    <button id="addFreeTextTopBtn">＋文字</button>
+    <button id="exportBtn">匯出 PNG</button>
   </div>
 </header>
 
@@ -32,10 +34,9 @@
 
   <section class="panel">
     <h2>版面</h2>
-
     <label>每排格數</label>
     <input id="layoutInput" type="text" value="4,4" autocomplete="off" />
-    <p class="hint">例：4,4＝兩排各 4 格；4,1＝第一排 4 格、第二排 1 格；5,5,5＝三排各 5 格。</p>
+    <p class="hint">例：4,4＝兩排各 4 格；4,1＝第一排 4 格、第二排 1 格。</p>
 
     <label>整排框框對齊</label>
     <select id="rowAlignSelect">
@@ -60,36 +61,52 @@
     </div>
 
     <div class="grid2">
-      <div><label>框框間距 px</label><input id="gapInput" type="number" value="10" min="0" /></div>
-      <div><label>畫布內距 px</label><input id="padInput" type="number" value="18" min="0" /></div>
+      <div><label>水平間距 px</label><input id="hGapInput" type="number" value="10" min="0" /></div>
+      <div><label>垂直間距 px</label><input id="vGapInput" type="number" value="10" min="0" /></div>
+    </div>
+
+    <div class="grid2">
+      <div><label>畫布左右內距 px</label><input id="padXInput" type="number" value="18" min="0" /></div>
+      <div><label>畫布上下內距 px</label><input id="padYInput" type="number" value="18" min="0" /></div>
     </div>
 
     <label class="switchline">
       <input id="groupPriceInput" type="checkbox" checked />
       <span>連續相同價格 ≥ 2 張，自動合併成 ——價格/1——</span>
     </label>
+
+    <div class="subpanel">
+      <div class="subpanel-title">合併價格位置</div>
+      <div class="grid2">
+        <div><label>上下位置</label><select id="groupPricePosSelect">
+          <option value="out-bottom">框外下方</option><option value="out-top">框外上方</option><option value="in-bottom">框內下方</option><option value="in-top">框內上方</option>
+        </select></div>
+        <div><label>左右對齊</label><select id="groupPriceAlignSelect">
+          <option value="left">靠左</option><option value="center" selected>置中</option><option value="right">靠右</option>
+        </select></div>
+      </div>
+      <label>水平微調</label><input id="groupPriceXInput" type="range" min="-100" max="100" value="0" />
+      <label>上下微調</label><input id="groupPriceYInput" type="range" min="-60" max="60" value="0" />
+    </div>
   </section>
 
   <section class="panel">
     <h2>背景與框線</h2>
-
     <div class="grid2">
-      <div>
-        <label>背景顏色</label>
-        <input id="backgroundColorInput" type="color" value="#ffffff" />
-      </div>
-      <div>
-        <label>背景圖片</label>
-        <button id="backgroundImageBtn">選背景圖</button>
-      </div>
+      <div><label>背景顏色</label><input id="backgroundColorInput" type="color" value="#ffffff" /></div>
+      <div><label>背景圖片</label><button id="backgroundImageBtn">選背景圖</button></div>
     </div>
     <button id="clearBackgroundImageBtn" class="full secondary">移除背景圖</button>
 
-    <label class="switchline">
-      <input id="borderEnabledInput" type="checkbox" checked />
-      <span>顯示框框邊框</span>
-    </label>
+    <div id="backgroundAdjustPanel" class="subpanel disabled-block">
+      <div class="subpanel-title">背景圖片裁切</div>
+      <label>背景縮放</label><input id="bgZoomInput" type="range" min="1" max="4" step="0.01" value="1" />
+      <label>背景左右位置</label><input id="bgXInput" type="range" min="0" max="100" value="50" />
+      <label>背景上下位置</label><input id="bgYInput" type="range" min="0" max="100" value="50" />
+      <label>背景旋轉</label><input id="bgRotateInput" type="range" min="-180" max="180" step="0.5" value="0" />
+    </div>
 
+    <label class="switchline"><input id="borderEnabledInput" type="checkbox" checked /><span>顯示框框邊框</span></label>
     <div class="grid3">
       <div><label>邊框顏色</label><input id="borderColorInput" type="color" value="#9ca3af" /></div>
       <div><label>粗細 px</label><input id="borderWidthInput" type="number" value="2" min="0" max="20" /></div>
@@ -97,31 +114,43 @@
     </div>
 
     <div class="grid2">
-      <div>
-        <label>框框角</label>
+      <div><label>框框角</label>
         <select id="frameCornerSelect">
-          <option value="0">尖角</option>
-          <option value="8" selected>小圓角</option>
-          <option value="18">大圓角</option>
-          <option value="999">膠囊圓角</option>
+          <option value="0">尖角</option><option value="8" selected>小圓角</option>
+          <option value="18">大圓角</option><option value="999">膠囊圓角</option>
         </select>
       </div>
-      <div>
-        <label>照片角</label>
+      <div><label>照片角</label>
         <select id="photoCornerSelect">
-          <option value="0">尖角</option>
-          <option value="8" selected>小圓角</option>
-          <option value="18">大圓角</option>
-          <option value="999">膠囊圓角</option>
+          <option value="0">尖角</option><option value="8" selected>小圓角</option>
+          <option value="18">大圓角</option><option value="999">膠囊圓角</option>
         </select>
       </div>
+    </div>
+  </section>
+
+
+  <section class="panel">
+    <h2>自由文字（不屬於任何框框）</h2>
+    <button id="addFreeTextBtn" class="full">＋新增自由文字</button>
+    <div id="noFreeText" class="hint top-gap">還沒有自由文字。</div>
+    <div id="freeTextEditor" hidden>
+      <label>目前文字</label><select id="freeTextSelect"></select>
+      <label>內容</label><input id="freeTextContentInput" type="text" />
+      <div class="style-grid">
+        <select id="freeTextFont"></select><input id="freeTextSize" type="number" min="8" max="120" value="20" />
+        <input id="freeTextColor" type="color" value="#111111" /><input id="freeTextOpacity" type="range" min="0" max="1" step="0.05" value="1" />
+      </div>
+      <label>水平位置</label><input id="freeTextX" type="range" min="0" max="100" value="50" />
+      <label>垂直位置</label><input id="freeTextY" type="range" min="0" max="100" value="50" />
+      <label>旋轉</label><input id="freeTextRotate" type="range" min="-180" max="180" step="1" value="0" />
+      <div class="grid2 top-gap"><button id="duplicateFreeTextBtn">複製這段文字</button><button id="deleteFreeTextBtn" class="danger">刪除這段文字</button></div>
     </div>
   </section>
 
   <section class="panel">
     <h2>目前選取格</h2>
     <div id="noSelection" class="hint">先點上方其中一個框框。</div>
-
     <div id="editor" hidden>
       <div class="grid2">
         <button id="choosePhotoBtn">上傳／拍照</button>
@@ -130,11 +159,7 @@
 
       <div class="subpanel">
         <div class="subpanel-title">此格尺寸</div>
-        <label class="switchline">
-          <input id="overrideSizeInput" type="checkbox" />
-          <span>此格使用獨立尺寸</span>
-        </label>
-
+        <label class="switchline"><input id="overrideSizeInput" type="checkbox" /><span>此格使用獨立尺寸</span></label>
         <div id="cardSizeControls" class="disabled-block">
           <label>此格預設尺寸</label>
           <select id="cardPresetSelect">
@@ -154,97 +179,64 @@
 
       <div class="subpanel">
         <div class="subpanel-title">文字內容與位置</div>
-        <p class="hint">「框外上／下」會放在白色背景處；「跨左上」會跨在框框與背景交界。</p>
+        <p class="hint">框外位置會自動留空間；也可選「手動位置」用 X/Y 微調。</p>
 
         <div class="meta-block">
           <label class="switchline"><input id="showNumber" type="checkbox" checked /><span>號碼</span></label>
           <input id="numberInput" />
-          <div class="grid2">
-            <select id="numberPos"></select>
-            <select id="numberStyleSelect">
-              <option value="plain">1</option>
-              <option value="hash">#1</option>
-              <option value="bracket">[1]</option>
-              <option value="circle">①</option>
-              <option value="zero">01</option>
-            </select>
-          </div>
+          <div class="grid2"><select id="numberPos"></select><select id="numberStyleSelect">
+            <option value="plain">1</option><option value="hash">#1</option><option value="bracket">[1]</option>
+            <option value="circle">①</option><option value="zero">01</option>
+          </select></div>
           <div class="style-grid">
-            <select id="numberFont"></select>
-            <input id="numberSize" type="number" min="8" max="80" value="16" />
-            <input id="numberColor" type="color" value="#ffffff" />
-            <input id="numberOpacity" type="range" min="0" max="1" step="0.05" value="1" />
+            <select id="numberFont"></select><input id="numberSize" type="number" min="8" max="80" value="16" />
+            <input id="numberColor" type="color" value="#ffffff" /><input id="numberOpacity" type="range" min="0" max="1" step="0.05" value="1" />
           </div>
+          <div id="numberManual" class="manual-grid"><div><label>X</label><input id="numberX" type="range" min="-30" max="130" value="50" /></div><div><label>Y</label><input id="numberY" type="range" min="-30" max="130" value="50" /></div></div>
         </div>
 
         <div class="meta-block">
           <label class="switchline"><input id="showName" type="checkbox" /><span>名稱</span></label>
-          <input id="nameInput" />
-          <select id="namePos"></select>
+          <input id="nameInput" /><select id="namePos"></select>
           <div class="style-grid">
-            <select id="nameFont"></select>
-            <input id="nameSize" type="number" min="8" max="80" value="16" />
-            <input id="nameColor" type="color" value="#ffffff" />
-            <input id="nameOpacity" type="range" min="0" max="1" step="0.05" value="1" />
+            <select id="nameFont"></select><input id="nameSize" type="number" min="8" max="80" value="16" />
+            <input id="nameColor" type="color" value="#ffffff" /><input id="nameOpacity" type="range" min="0" max="1" step="0.05" value="1" />
           </div>
+          <div id="nameManual" class="manual-grid"><div><label>X</label><input id="nameX" type="range" min="-30" max="130" value="50" /></div><div><label>Y</label><input id="nameY" type="range" min="-30" max="130" value="50" /></div></div>
         </div>
 
         <div class="meta-block">
           <label class="switchline"><input id="showPrice" type="checkbox" checked /><span>價格</span></label>
-          <input id="priceInput" />
-          <select id="pricePos"></select>
+          <input id="priceInput" /><select id="pricePos"></select>
           <div class="style-grid">
-            <select id="priceFont"></select>
-            <input id="priceSize" type="number" min="8" max="80" value="16" />
-            <input id="priceColor" type="color" value="#ffffff" />
-            <input id="priceOpacity" type="range" min="0" max="1" step="0.05" value="1" />
+            <select id="priceFont"></select><input id="priceSize" type="number" min="8" max="80" value="16" />
+            <input id="priceColor" type="color" value="#ffffff" /><input id="priceOpacity" type="range" min="0" max="1" step="0.05" value="1" />
           </div>
+          <div id="priceManual" class="manual-grid"><div><label>X</label><input id="priceX" type="range" min="-30" max="130" value="50" /></div><div><label>Y</label><input id="priceY" type="range" min="-30" max="130" value="50" /></div></div>
         </div>
 
         <div class="meta-block">
           <label class="switchline"><input id="showCustom" type="checkbox" /><span>自訂文字</span></label>
-          <input id="customInput" />
-          <select id="customPos"></select>
+          <input id="customInput" /><select id="customPos"></select>
           <div class="style-grid">
-            <select id="customFont"></select>
-            <input id="customSize" type="number" min="8" max="80" value="16" />
-            <input id="customColor" type="color" value="#ffffff" />
-            <input id="customOpacity" type="range" min="0" max="1" step="0.05" value="1" />
+            <select id="customFont"></select><input id="customSize" type="number" min="8" max="80" value="16" />
+            <input id="customColor" type="color" value="#ffffff" /><input id="customOpacity" type="range" min="0" max="1" step="0.05" value="1" />
           </div>
+          <div id="customManual" class="manual-grid"><div><label>X</label><input id="customX" type="range" min="-30" max="130" value="50" /></div><div><label>Y</label><input id="customY" type="range" min="-30" max="130" value="50" /></div></div>
         </div>
       </div>
 
       <div class="subpanel">
         <div class="subpanel-title">照片調整</div>
-
-        <label>裁切縮放</label>
-        <input id="zoomInput" type="range" min="1" max="3" step="0.01" value="1" />
-
-        <label>左右裁切位置</label>
-        <input id="xInput" type="range" min="0" max="100" value="50" />
-
-        <label>上下裁切位置</label>
-        <input id="yInput" type="range" min="0" max="100" value="50" />
-
-        <label>旋轉校正 °</label>
-        <input id="rotateInput" type="range" min="-180" max="180" step="0.5" value="0" />
-
-        <label>水平校正</label>
-        <input id="skewYInput" type="range" min="-20" max="20" step="0.1" value="0" />
-
-        <label>傾斜校正</label>
-        <input id="skewXInput" type="range" min="-20" max="20" step="0.1" value="0" />
-
-        <label>亮度</label>
-        <input id="brightnessInput" type="range" min="0.4" max="1.8" step="0.01" value="1" />
-
-        <label>色溫</label>
-        <input id="warmthInput" type="range" min="-1" max="1" step="0.01" value="0" />
-
-        <label class="switchline">
-          <input id="soldInput" type="checkbox" />
-          <span>售完／灰白</span>
-        </label>
+        <label>裁切縮放</label><input id="zoomInput" type="range" min="1" max="3" step="0.01" value="1" />
+        <label>左右裁切位置</label><input id="xInput" type="range" min="0" max="100" value="50" />
+        <label>上下裁切位置</label><input id="yInput" type="range" min="0" max="100" value="50" />
+        <label>旋轉校正 °</label><input id="rotateInput" type="range" min="-180" max="180" step="0.5" value="0" />
+        <label>水平校正</label><input id="skewYInput" type="range" min="-20" max="20" step="0.1" value="0" />
+        <label>傾斜校正</label><input id="skewXInput" type="range" min="-20" max="20" step="0.1" value="0" />
+        <label>亮度</label><input id="brightnessInput" type="range" min="0.4" max="1.8" step="0.01" value="1" />
+        <label>色溫</label><input id="warmthInput" type="range" min="-1" max="1" step="0.01" value="0" />
+        <label class="switchline"><input id="soldInput" type="checkbox" /><span>售完／灰白</span></label>
       </div>
     </div>
   </section>
